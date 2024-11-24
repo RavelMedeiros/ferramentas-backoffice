@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react"; // Importando o ícone Loader2
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner"; // Importando o Spinner do ShadCN
 import {
   Table,
   TableHeader,
@@ -25,39 +25,26 @@ const getRandomDate = () => {
   return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 };
 
-const formatDateForBackend = (date, isEndOfDay = false) => {
-  const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-  const monthName = date.toLocaleDateString("en-US", { month: "short" });
-  const year = date.getFullYear();
-  const day = String(date.getDate()).padStart(2, "0");
-  const time = isEndOfDay ? "23:59:59" : "00:00:00";
-  const timezone = date.toTimeString().match(/\(.*?\)/)?.[0]?.replace(/[()]/g, "GMT");
-  return `${dayName} ${monthName} ${day} ${year} ${time} GMT-0400`;
-};
+const formatDateForBackend = (date, isStart) => {
+  const options = {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "America/Sao_Paulo",
+    timeZoneName: "short",
+  };
 
-const getAuthToken = async () => {
-  try {
-    const response = await fetch(
-      "https://candidate.homolog.meutudo.app/tudo/v2/logintoken",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username: "admin", password: "123124" }),
-      }
-    );
+  const time = isStart ? "00:00:00" : "23:59:59";
+  const formattedDate = date
+    .toLocaleString("en-US", options)
+    .replace(/,/, "") // Remove vírgulas
+    .replace(/:/g, ":"); // Garante os dois pontos no horário
 
-    if (!response.ok) {
-      throw new Error("Erro ao obter o token de autenticação");
-    }
-
-    const result = await response.json();
-    return result.resource.authenticationToken;
-  } catch (error) {
-    console.error("Erro na autenticação:", error.message);
-    throw error;
-  }
+  return formattedDate.replace(/(\d{2}:\d{2}:\d{2}).*/, `$1 GMT-0400`);
 };
 
 export default function Home() {
@@ -72,24 +59,21 @@ export default function Home() {
     setData([]);
 
     try {
-      const token = await getAuthToken();
       let foundOpportunity = false;
       let personWithOpportunity = null;
 
       while (!foundOpportunity) {
         const randomDate = getRandomDate();
-        const startDate = formatDateForBackend(randomDate);
-        const endDate = formatDateForBackend(randomDate, true);
+        const formattedStartDate = formatDateForBackend(randomDate, true);
+        const formattedEndDate = formatDateForBackend(randomDate, false);
 
         const response = await fetch(
-          `https://candidate.homolog.meutudo.app/tudo/v2/admin/personcustom/people?startDate=${encodeURIComponent(
-            startDate
-          )}&endDate=${encodeURIComponent(endDate)}`,
+          `https://candidate.homolog.meutudo.app/tudo/v2/admin/personcustom/people?startDate=${formattedStartDate}&endDate=${formattedEndDate}`,
           {
             method: "GET",
             headers: {
               Accept: "application/json, text/plain, */*",
-              Authorization: `Bearer ${token}`,
+              Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTczMjQyMzU3NywidG9rZW5Nb2RlIjoiTE9HSU5fVE9fU0VTU0lPTiJ9.tu7NGVS2JZasFk379RG-LGc0RQRzN5XdsIh2aAuDi7Q",
             },
           }
         );
@@ -108,7 +92,7 @@ export default function Home() {
               method: "GET",
               headers: {
                 Accept: "application/json, text/plain, */*",
-                Authorization: `Bearer ${token}`,
+                Authorization: "Bearer <seu-token-aqui>",
               },
             }
           );
@@ -174,8 +158,8 @@ export default function Home() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="animate-spin mr-2" />
-                  A busca pode levar um tempo, por favor, aguarde...
+                  <Spinner className="mr-2" />
+                  Buscando... Isso pode levar alguns segundos
                 </>
               ) : (
                 "Buscar"
@@ -210,7 +194,7 @@ export default function Home() {
                         <TableCell>{entry.id}</TableCell>
                         <TableCell>{entry.name}</TableCell>
                         <TableCell>{entry.registrationStatus}</TableCell>
-                        <TableCell>{formatDateForBackend(new Date(entry.registrationDate))}</TableCell>
+                        <TableCell>{formatDateForBackend(new Date(entry.registrationDate), true)}</TableCell>
                         <TableCell>
                           <button
                             onClick={() => handleIconClick(entry.id)}
@@ -236,7 +220,7 @@ export default function Home() {
         <p className="text-sm">
           Tem uma sugestão ou encontrou um problema?{" "}
           <a
-            href="https://mountain-appliance-784.notion.site/148ea5a23db480a2b285c570ebf34b28?pvs=105"
+            href="https://forms.google.com"
             target="_blank"
             rel="noopener noreferrer"
             className="text-pink-600 underline"
